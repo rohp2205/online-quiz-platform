@@ -1,20 +1,21 @@
-'use client'
-import { supabase } from '@/lib/supabase'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import './globals.css'
+import { Toaster } from 'react-hot-toast'
+
+export const metadata = {
+  title: 'Online Quiz Platform',
+  description: 'Admin based online quiz system',
+}
 
 export default function RootLayout({ children }) {
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.push('/login')
-      setLoading(false)
-    })
-  }, [])
-
-  if (loading) return null
-
-  return <html><body>{children}</body></html>
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className="bg-black text-white"
+        suppressHydrationWarning
+      >
+        {children}
+        <Toaster position="top-right" />
+      </body>
+    </html>
+  )
 }
