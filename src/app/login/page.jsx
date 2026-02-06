@@ -10,7 +10,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault() // ✅ REQUIRED for Enter key
+
     if (!email || !password) {
       alert('Please enter email and password')
       return
@@ -23,21 +25,23 @@ export default function LoginPage() {
       password,
     })
 
+    setLoading(false)
+
     if (error) {
       alert(error.message)
     } else {
       router.push('/dashboard')
     }
-
-    setLoading(false)
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center px-4">
       
       {/* GLASS CARD */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-        
+      <form
+        onSubmit={handleLogin}
+        className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl"
+      >
         {/* TITLE */}
         <h1 className="text-3xl font-bold text-white text-center mb-2">
           🧑‍💼 Admin Login
@@ -57,6 +61,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-3 rounded-lg bg-black/40 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition"
+            required
           />
         </div>
 
@@ -71,12 +76,13 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-lg bg-black/40 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition"
+            required
           />
         </div>
 
         {/* LOGIN BUTTON */}
         <button
-          onClick={handleLogin}
+          type="submit"   // ✅ IMPORTANT
           disabled={loading}
           className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold text-lg tracking-wide hover:from-purple-700 hover:to-blue-700 transition"
         >
@@ -87,7 +93,7 @@ export default function LoginPage() {
         <p className="text-center text-gray-500 text-sm mt-6">
           Authorized access only
         </p>
-      </div>
+      </form>
     </div>
   )
 }

@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [editingTitle, setEditingTitle] = useState('')
   const router = useRouter()
 
+  /* 🔐 AUTH CHECK */
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) router.push('/login')
@@ -24,6 +25,7 @@ export default function Dashboard() {
     })
   }, [])
 
+  /* 📥 FETCH DATA */
   const fetchData = async () => {
     const { data: quizzes } = await supabase
       .from('quizzes')
@@ -35,7 +37,7 @@ export default function Dashboard() {
       .select('quiz_id')
 
     const counts = {}
-    questions?.forEach((q) => {
+    questions?.forEach(q => {
       counts[q.quiz_id] = (counts[q.quiz_id] || 0) + 1
     })
 
@@ -43,8 +45,9 @@ export default function Dashboard() {
     setQuestionCounts(counts)
   }
 
+  /* ➕ CREATE QUIZ */
   const createQuiz = async () => {
-    if (!title) return toast.error('Quiz title required')
+    if (!title.trim()) return toast.error('Quiz title required')
 
     const loading = toast.loading('Creating quiz...')
     const { error } = await supabase.from('quizzes').insert({ title })
@@ -58,7 +61,10 @@ export default function Dashboard() {
     }
   }
 
+  /* ✏️ SAVE QUIZ TITLE */
   const saveEdit = async () => {
+    if (!editingTitle.trim()) return toast.error('Title required')
+
     const loading = toast.loading('Updating quiz...')
     const { error } = await supabase
       .from('quizzes')
@@ -76,6 +82,7 @@ export default function Dashboard() {
     }
   }
 
+  /* ❌ DELETE QUIZ */
   const deleteQuiz = async (id) => {
     if (!confirm('Delete quiz and all questions?')) return
 
@@ -94,13 +101,15 @@ export default function Dashboard() {
     }
   }
 
-  /* 🔗 COPY QUIZ LINK */
+  /* 🔗 COPY QUIZ LINK (VERCEL SAFE) */
   const copyQuizLink = (quizId) => {
+    if (typeof window === 'undefined') return
     const link = `${window.location.origin}/quiz/${quizId}`
     navigator.clipboard.writeText(link)
     toast.success('Quiz link copied')
   }
 
+  /* 🚪 LOGOUT */
   const logout = async () => {
     await supabase.auth.signOut()
     toast.success('Logged out')
@@ -151,7 +160,6 @@ export default function Dashboard() {
           {/* CREATE QUIZ */}
           <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-6 mb-10">
             <h2 className="text-lg font-semibold mb-4">Create Quiz</h2>
-
             <div className="flex gap-4">
               <input
                 value={title}
@@ -168,11 +176,11 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* QUIZ LIST */}
+          {/* QUIZZES */}
           <h2 className="text-2xl font-bold mb-4">Your Quizzes</h2>
 
           <div className="grid md:grid-cols-2 gap-6">
-            {quizzes.map((q) => (
+            {quizzes.map(q => (
               <div
                 key={q.id}
                 className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-6"
@@ -193,7 +201,10 @@ export default function Dashboard() {
                         Save
                       </button>
                       <button
-                        onClick={() => setEditingId(null)}
+                        onClick={() => {
+                          setEditingId(null)
+                          setEditingTitle('')
+                        }}
                         className="bg-gray-600 px-4 py-2 rounded"
                       >
                         Cancel
@@ -203,35 +214,31 @@ export default function Dashboard() {
                 ) : (
                   <>
                     <h3 className="text-lg font-semibold">{q.title}</h3>
-
                     <p className="text-sm text-gray-400">
                       {questionCounts[q.id] || 0} Questions
                     </p>
 
                     <div className="flex justify-between items-center mt-4">
-                      {/* LEFT ACTIONS */}
+
+                      {/* LEFT */}
                       <div className="flex items-center gap-4">
                         <button
                           onClick={() => router.push(`/dashboard/${q.id}`)}
                           className="text-blue-400 hover:underline"
                         >
-                          Add Questions →
+                          Edit Questions →
                         </button>
 
-                        {/* 🔗 ICON AVATAR COPY LINK */}
                         <button
                           onClick={() => copyQuizLink(q.id)}
                           title="Copy quiz link"
-                          className="w-9 h-9 rounded-full 
-                                     bg-gradient-to-br from-purple-600 to-blue-600 
-                                     flex items-center justify-center 
-                                     hover:scale-110 transition"
+                          className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center hover:scale-110 transition"
                         >
                           🔗
                         </button>
                       </div>
 
-                      {/* RIGHT ACTIONS */}
+                      {/* RIGHT */}
                       <div className="flex gap-2">
                         <button
                           onClick={() => {

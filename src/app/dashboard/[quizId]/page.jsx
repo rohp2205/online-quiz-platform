@@ -2,149 +2,244 @@
 
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 
-export default function AddQuestion() {
-  const { quizId } = useParams()
+export default function ManageQuestions() {
+  const params = useParams()
+  const quizId = params?.quizId
   const router = useRouter()
 
-  const [question, setQuestion] = useState('')
-  const [options, setOptions] = useState({
+  const [questions, setQuestions] = useState([])
+  const [editingId, setEditingId] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const [form, setForm] = useState({
+    question: '',
     a: '',
     b: '',
     c: '',
     d: '',
+    correct: 'a',
   })
-  const [correct, setCorrect] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  const addQuestion = async () => {
-    if (!question || !correct) {
-      toast.error('Please complete the question')
+  /* ================= FETCH QUESTIONS ================= */
+  useEffect(() => {
+    if (quizId) {
+      fetchQuestions()
+    }
+  }, [quizId])
+
+  const fetchQuestions = async () => {
+    const { data, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('quiz_id', quizId)
+
+    if (error) {
+      console.error('Supabase error:', error.message)
+      toast.error(error.message)
+    } else {
+      setQuestions(data || [])
+    }
+  }
+
+  /* ================= SAVE QUESTION ================= */
+  const saveQuestion = async () => {
+    if (!form.question || !form.correct) {
+      toast.error('Question and correct answer required')
       return
     }
 
     setLoading(true)
-    const loadingToast = toast.loading('Saving question...')
+    const toastId = toast.loading(
+      editingId ? 'Updating question...' : 'Adding question...'
+    )
 
-    const { error } = await supabase.from('questions').insert({
+    const payload = {
       quiz_id: quizId,
-      question,
-      option_a: options.a,
-      option_b: options.b,
-      option_c: options.c,
-      option_d: options.d,
-      correct_option: correct,
-    })
+      question: form.question,
+      option_a: form.a,
+      option_b: form.b,
+      option_c: form.c,
+      option_d: form.d,
+      correct_option: form.correct,
+    }
 
-    toast.dismiss(loadingToast)
+    const { error } = editingId
+      ? await supabase.from('questions').update(payload).eq('id', editingId)
+      : await supabase.from('questions').insert(payload)
+
+    toast.dismiss(toastId)
     setLoading(false)
 
     if (error) {
-      toast.error('Failed to save question')
+      console.error(error)
+      toast.error(error.message)
     } else {
-      toast.success('Question added successfully')
-      setQuestion('')
-      setOptions({ a: '', b: '', c: '', d: '' })
-      setCorrect('')
+      toast.success(editingId ? 'Question updated' : 'Question added')
+      resetForm()
+      fetchQuestions()
     }
   }
 
+  /* ================= EDIT ================= */
+  const editQuestion = (q) => {
+    setEditingId(q.id)
+    setForm({
+      question: q.question,
+      a: q.option_a,
+      b: q.option_b,
+      c: q.option_c,
+      d: q.option_d,
+      correct: q.correct_option,
+    })
+  }
+
+  /* ================= DELETE ================= */
+  const deleteQuestion = async (id) => {
+    if (!confirm('Delete this question?')) return
+
+    const { error } = await supabase
+      .from('questions')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      toast.error(error.message)
+    } else {
+      toast.success('Question deleted')
+      fetchQuestions()
+    }
+  }
+
+  const resetForm = () => {
+    setEditingId(null)
+    setForm({
+      question: '',
+      a: '',
+      b: '',
+      c: '',
+      d: '',
+      correct: 'a',
+    })
+  }
+
+  /* ================= UI ================= */
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white px-6 py-10">
 
       {/* HEADER */}
       <div className="max-w-5xl mx-auto mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">➕ Add Question</h1>
+          <h1 className="text-3xl font-bold">
+            {editingId ? '✏️ Edit Question' : '➕ Add Question'}
+          </h1>
           <p className="text-gray-400">
-            Create high-quality MCQs for your quiz
+            Manage all questions for this quiz
           </p>
         </div>
 
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/dashboard')}
           className="text-sm text-gray-300 hover:text-white"
         >
-          ← Back
+          ← Back to Dashboard
         </button>
       </div>
 
-      {/* MAIN CARD */}
-      <div className="max-w-5xl mx-auto bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-xl">
-
-        {/* QUESTION */}
-        <label className="block text-sm text-gray-300 mb-2">
-          Question
-        </label>
+      {/* FORM */}
+      <div className="max-w-5xl mx-auto bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-xl mb-10">
         <textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Enter the question here..."
+          value={form.question}
+          onChange={(e) => setForm({ ...form, question: e.target.value })}
+          placeholder="Enter question..."
           rows={3}
-          className="w-full mb-6 p-4 rounded-lg bg-black/40 border border-white/20 focus:outline-none focus:border-purple-500"
+          className="w-full mb-6 p-4 rounded bg-black/40 border border-white/20"
         />
 
-        {/* OPTIONS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {['a', 'b', 'c', 'd'].map((key) => (
-            <div key={key}>
-              <label className="block text-sm text-gray-300 mb-1">
-                Option {key.toUpperCase()}
-              </label>
-              <input
-                value={options[key]}
-                onChange={(e) =>
-                  setOptions({ ...options, [key]: e.target.value })
-                }
-                placeholder={`Enter option ${key.toUpperCase()}`}
-                className="w-full p-3 rounded-lg bg-black/40 border border-white/20 focus:outline-none focus:border-purple-500"
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {['a', 'b', 'c', 'd'].map((k) => (
+            <input
+              key={k}
+              value={form[k]}
+              onChange={(e) => setForm({ ...form, [k]: e.target.value })}
+              placeholder={`Option ${k.toUpperCase()}`}
+              className="p-3 rounded bg-black/40 border border-white/20"
+            />
           ))}
         </div>
 
-        {/* CORRECT OPTION */}
-        <label className="block text-sm text-gray-300 mb-3">
-          Select Correct Answer
-        </label>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="flex gap-4 mb-6">
           {['a', 'b', 'c', 'd'].map((opt) => (
             <button
               key={opt}
               type="button"
-              onClick={() => setCorrect(opt)}
-              className={`p-4 rounded-xl border font-semibold transition-all
-                ${
-                  correct === opt
-                    ? 'bg-green-600/30 border-green-500 scale-105'
-                    : 'border-white/20 hover:border-green-400'
-                }`}
+              onClick={() => setForm({ ...form, correct: opt })}
+              className={`px-4 py-2 rounded border ${
+                form.correct === opt
+                  ? 'bg-green-600/30 border-green-500'
+                  : 'border-white/20'
+              }`}
             >
-              Option {opt.toUpperCase()}
+              Correct: {opt.toUpperCase()}
             </button>
           ))}
         </div>
 
-        {/* ACTIONS */}
-        <div className="flex justify-end gap-4">
+        <div className="flex gap-4">
           <button
-            onClick={() => router.back()}
-            className="px-6 py-3 rounded-xl border border-white/20 hover:bg-white/10"
+            onClick={saveQuestion}
+            disabled={loading}
+            className="bg-green-600 px-6 py-2 rounded"
           >
-            Cancel
+            {editingId ? 'Update Question' : 'Save Question'}
           </button>
 
-          <button
-            onClick={addQuestion}
-            disabled={loading}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 font-semibold transition"
-          >
-            {loading ? 'Saving...' : 'Save Question'}
-          </button>
+          {editingId && (
+            <button
+              onClick={resetForm}
+              className="bg-gray-600 px-6 py-2 rounded"
+            >
+              Cancel Edit
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* QUESTION LIST */}
+      <div className="max-w-5xl mx-auto">
+        {questions.length === 0 && (
+          <p className="text-gray-400 text-center">
+            No questions added yet
+          </p>
+        )}
+
+        {questions.map((q, i) => (
+          <div
+            key={q.id}
+            className="bg-white/10 p-4 rounded mb-4"
+          >
+            <p className="font-semibold">
+              {i + 1}. {q.question}
+            </p>
+
+            <div className="flex gap-3 mt-3">
+              <button
+                onClick={() => editQuestion(q)}
+                className="bg-yellow-500 text-black px-3 rounded"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => deleteQuestion(q.id)}
+                className="bg-red-600 px-3 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
